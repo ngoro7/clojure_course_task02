@@ -5,7 +5,7 @@
 (defn- filter-str-list [patt str-list]
   "Filter string list 'str-list' using compiled regular"
   "expression 'patt' "
-  (filter #(not (nil? (re-matches patt %))) str-list))
+  (filter #(re-matches patt %) str-list))
 
 (defn- filter-file-tree [dir patt]
   "Travers recurcively file free starting from 'dir'"
@@ -13,19 +13,14 @@
   "regular expression 'patt' "
   (let [
         ;; Two lists in current dir: files and dirs list
-        fmap (group-by #(.isDirectory %) (seq (. dir (listFiles))))
+        fmap (group-by #(.isDirectory %) (.listFiles dir))
         ;; only dirs
         dir-list (get fmap true)
 
         ;; Prepare tree-scan tasks in background
         ;; and force to run it by using 'doall'
         ;; Keep task futures in futures-list
-        futures-list (doall (
-            map #(
-              future (filter-file-tree % patt)  
-            )
-            dir-list
-        ))
+        futures-list (doall (map #( future (filter-file-tree % patt)) dir-list))
 
         ;; current dir files (names)
         file-names (map #(. % (getName)) (get fmap false))
@@ -37,7 +32,7 @@
       ]
     ;; union filtered current list
     ;; and files lists from subtree
-    (concat filtered-file-names (flatten child-file-names)) ))
+    (concat filtered-file-names (flatten child-file-names))))
 
 
 (defn find-files [file-name path]
@@ -57,4 +52,5 @@
     (usage)
     (do
       (println "Searching for " file-name " in " path "...")
-      (dorun (map println (find-files file-name path))))))
+      (time (dorun (map println (find-files file-name path))))
+      (shutdown-agents))))
